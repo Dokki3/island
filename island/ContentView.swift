@@ -10,30 +10,21 @@ import SwiftUI
 
 struct ContentView: View {
     
-    @State var viewReloaded = false
+    @State var refresh = false
     @State var island = Island(w: 30, h: 15)
+    
+    let timer = Timer.publish(every: 1, on: .current, in: .common).autoconnect()
     
     var body: some View {
         
         VStack {
-            if viewReloaded{
-                IslandView(island_new: island)
-            }
-            else{
-                IslandView(island_new: island)
-            }
-            HStack {
-                Button("Reload") {
+            IslandView(island_new: island, refresh: refresh)
+                .onReceive(timer) {_ in
                     island.allAnimalGo()
-                    viewReloaded.toggle()
+                    refresh.toggle()
                 }
-                .buttonStyle(.bordered)
-                .font(.system(size: 40))
-                Text(String(island.x_q))
-                    .font(.system(size: 40))
-            }
-            .padding()
         }
+        .background(Color.green)
         .padding()
     }
 }
@@ -43,6 +34,8 @@ struct ContentView: View {
 struct IslandView: View {
     
     let island_new: Island
+    
+    @State var refresh: Bool
     
     /*init(island_new: Island) {
         self.island_new = island_new
@@ -58,7 +51,7 @@ struct IslandView: View {
                             .foregroundColor(island_new.plantInArray(w: i, h: j) ? Color.green : Color.gray)
                             .overlay(
                                 Text(island_new.getChars(w: i, h: j))
-                                    .font(.system(size: 15))
+                                    .font(.system(size: 7))
                             )
                     }
                 }

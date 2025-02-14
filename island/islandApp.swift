@@ -12,7 +12,7 @@ class Island {
     public let width: Int;
     public let height: Int;
     
-    public var islands: Array<Array<Array<Life>>> = []
+    public var islands: Array<Array<Array<Object>>> = []
     
     public var x_q: Int = 0
     public var y_q: Int = 0
@@ -58,7 +58,7 @@ class Island {
             for j in 0...self.height {
                 for k in 0..<(self.islands[i][j].count) {
                     if type(of: islands[i][j][k]) == type(of: Wolf(x: -1, y: -1)) {
-                        islands[i][j][k].go()
+                        islands[i][j][k].go(w: width, h: height)
                         if count == 0 {
                             x_q = i
                             y_q = j
@@ -72,9 +72,9 @@ class Island {
     }
     
     public func updateIsland() {
-        var islandsNew: Array<Array<Array<Life>>> = []
+        var islandsNew: Array<Array<Array<Object>>> = []
         
-        var allLife: Array<Life> = []
+        var allLife: Array<Object> = []
         
         for i in 0...width {
             for j in 0...height {
@@ -100,8 +100,8 @@ class Island {
     
 }
 
-// Основные виды живых существ
-class Life {
+// общий класс
+class Object {
     public var x: Int;
     public var y: Int;
     
@@ -110,21 +110,26 @@ class Life {
         self.y = y
     }
     
-    public func go() {}
+    public func go(w: Int, h: Int) {}
+    public func eat(anim: Array<Animal>) -> Bool {return false}
+    public func die() {}
+    public func reproduction(partner: Animal) -> Bool {return false}
     public func getChar() -> Character {return " "}
+    public func getColor() -> Color {return Color.white}
 }
 
-class Plant: Life {
+// Основные виды живых существ
+class Plant: Object {
     
     override init(x: Int, y:Int) {
         super.init(x: x, y: y)
     }
     
-    public func die() {}
-    public func getColor() -> Color {return Color.green}
+    public override func die() {}
+    public override func getColor() -> Color {return Color.green}
 }
 
-class Animal: Life {
+class Animal: Object {
     public var weight: Int = 0;
     public var maxEating: Int = 0;
     public var maxSpeed: Int = 0;
@@ -133,11 +138,6 @@ class Animal: Life {
         super.init(x: x, y: y)
     }
     
-    public override func go() {}
-    public func eat(anim: Array<Animal>) -> Bool {return false}
-    public func die() {}
-    public func reproduction(partner: Animal) -> Bool {return false}
-    public override func getChar() -> Character {return " "}
 }
 
 // разделение животных на хищников и травоядных
@@ -158,19 +158,27 @@ class Wolf: Predator {
         self.maxSpeed = 3
     }
     
-    public override func go() {
+    public override func go(w: Int, h: Int) {
         let speedAnimal: Int = Int.random(in: 0...maxSpeed)
         for _ in 0...speedAnimal {
             let rotateWalk: Int = Int.random(in: 0...3)
             switch rotateWalk {
             case 0:
-                self.y -= 1
+                if self.y - 1 >= 0 {
+                    self.y -= 1
+                }
             case 1:
-                self.x += 1
+                if self.x + 1 < w {
+                    self.x += 1
+                }
             case 2:
-                self.y += 1
+                if self.y + 1 < h {
+                    self.y += 1
+                }
             case 3:
-                self.x -= 1
+                if self.x - 1 >= 0 {
+                    self.x -= 1
+                }
             default:
                 break
             }
