@@ -29,7 +29,11 @@ class Island {
                     islands[i][j].append(Plant(x: i, y: j))
                 }
                 if Int.random(in: 0...10) == 0 {
-                    islands[i][j].append(Wolf(x: i, y: j))
+                    switch Int.random(in: 0...1) {
+                    case 0: islands[i][j].append(Wolf(x: i, y: j))
+                    case 1: islands[i][j].append(Horse(x: i, y: j))
+                    default: continue
+                    }
                 }
             }
         }
@@ -57,13 +61,11 @@ class Island {
         for i in 0...self.width {
             for j in 0...self.height {
                 for k in 0..<(self.islands[i][j].count) {
-                    if type(of: islands[i][j][k]) == type(of: Wolf(x: -1, y: -1)) {
-                        islands[i][j][k].go(w: width, h: height)
-                        if count == 0 {
-                            x_q = i
-                            y_q = j
-                            count += 1
-                        }
+                    islands[i][j][k].go(w: width, h: height)
+                    if count == 0 {
+                        x_q = i
+                        y_q = j
+                        count += 1
                     }
                 }
             }
@@ -138,26 +140,6 @@ class Animal: Object {
         super.init(x: x, y: y)
     }
     
-}
-
-// разделение животных на хищников и травоядных
-class Predator: Animal {
-    
-}
-
-class Herbivore: Animal {
-    
-}
-
-// Хищники:
-class Wolf: Predator {
-    override init(x: Int, y: Int) {
-        super.init(x: x, y: y)
-        self.weight = 50
-        self.maxEating = 8
-        self.maxSpeed = 3
-    }
-    
     public override func go(w: Int, h: Int) {
         let speedAnimal: Int = Int.random(in: 0...maxSpeed)
         for _ in 0...speedAnimal {
@@ -185,7 +167,41 @@ class Wolf: Predator {
         }
     }
     
+}
+
+// разделение животных на хищников и травоядных
+class Predator: Animal {
+    
+}
+
+class Herbivore: Animal {
+    
+}
+
+// Хищники:
+class Wolf: Predator {
+    override init(x: Int, y: Int) {
+        super.init(x: x, y: y)
+        self.weight = 50
+        self.maxEating = 8
+        self.maxSpeed = 3
+    }
+    
     public override func getChar() -> Character {return "🐺"}
+}
+
+
+// Травоядные:
+class Horse: Herbivore {
+    override init(x: Int, y: Int) {
+        super.init(x: x, y: y)
+        self.weight = 50
+        self.maxEating = 8
+        self.maxSpeed = 3
+    }
+    
+    public override func getChar() -> Character {return "🐴"}
+
 }
 
 
