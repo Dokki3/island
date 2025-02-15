@@ -13,16 +13,44 @@ struct ContentView: View {
     @State var refresh = false
     @State var island = Island(w: 30, h: 15)
     
-    let timer = Timer.publish(every: 1, on: .current, in: .common).autoconnect()
+    @State var timer = Timer.publish(every: 0.5, on: .current, in: .common).autoconnect()
+    @State var timerPause = false
     
     var body: some View {
         
         VStack {
             IslandView(island_new: island, refresh: refresh)
                 .onReceive(timer) {_ in
-                    island.allAnimalGo()
+                    if Int.random(in: 0...1) == 0 {
+                        island.allAnimalGo()
+                    } else {
+                        island.allAnimalEat()
+                    }
+                    island.updateIsland()
                     refresh.toggle()
                 }
+            HStack {
+                Text(String(island.countWolf()))
+                    .padding()
+                    .font(.system(size: 15))
+                
+                Button("playpause", systemImage: "playpause.fill") {
+                    if !timerPause {
+                        timer = Timer.publish(every: 999999, on: .current, in: .common).autoconnect()
+                        timerPause.toggle()
+                    } else {
+                        timer = Timer.publish(every: 0.5, on: .current, in: .common).autoconnect()
+                        timerPause.toggle()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .padding()
+                .font(.system(size: 15))
+                
+                Text(String(island.countHorse()))
+                    .padding()
+                    .font(.system(size: 15))
+            }
         }
         .background(Color.green)
         .padding()
