@@ -29,9 +29,12 @@ class Island {
                     islands[i][j].append(Plant(x: i, y: j))
                 }
                 if Int.random(in: 0...10) == 0 {
-                    switch Int.random(in: 0...1) {
+                    switch Int.random(in: 0...4) {
                     case 0: islands[i][j].append(Wolf(x: i, y: j))
                     case 1: islands[i][j].append(Horse(x: i, y: j))
+                    case 2: islands[i][j].append(Bear(x: i, y: j))
+                    case 3: islands[i][j].append(Fox(x: i, y: j))
+                    case 4: islands[i][j].append(Rabbit(x: i, y: j))
                     default: continue
                     }
                 }
@@ -77,6 +80,7 @@ class Island {
                             for (index, obj) in islands[i][j].enumerated() {
                                 if obj == eatingObject {
                                     ind = index
+                                    //print("\(k.getChar()) (\(String(describing: k.id))) съел \(islands[i][j][ind].getChar() != " " ? islands[i][j][ind].getChar() : "🟩") (\(String(describing: islands[i][j][ind].id))) а хотел съесть \(String(describing: eatingObject?.getChar() != " " ? eatingObject?.getChar() : "🟩")) (\(String(describing: eatingObject?.id)))")
                                     break
                                 }
                             }
@@ -150,10 +154,12 @@ class Island {
 class Object {
     public var x: Int;
     public var y: Int;
+    public var id: UnsafeMutableRawPointer? = nil;
     
     init(x: Int, y: Int) {
         self.x = x
         self.y = y
+        self.id = Unmanaged.passUnretained(self).toOpaque()
     }
     
     public func go(w: Int, h: Int) {}
@@ -167,7 +173,7 @@ class Object {
 // Расширение пользовательского типа
 extension Object: Equatable {
     static func == (left: Object, right: Object) -> Bool {
-        if left.x == right.x && left.y == right.y {
+        if left.x == right.x && left.y == right.y && left.id == right.id {
             return true
         } else {
             return false
@@ -247,6 +253,7 @@ class Wolf: Predator {
     public override func eat(anim: Array<Object>) -> Object? {
         for i in anim {
             if ((i as? Horse?) != nil) {
+                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
                 return i
             }
         }
@@ -254,6 +261,48 @@ class Wolf: Predator {
     }
     
     public override func getChar() -> Character {return "🐺"}
+}
+
+class Bear: Predator {
+    override init(x: Int, y: Int) {
+        super.init(x: x, y: y)
+        self.weight = 500
+        self.maxEating = 80
+        self.maxSpeed = 2
+    }
+    
+    public override func eat(anim: Array<Object>) -> Object? {
+        for i in anim {
+            if ((i as? Horse?) != nil) {
+                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                return i
+            }
+        }
+        return nil
+    }
+    
+    public override func getChar() -> Character {return "🐻"}
+}
+
+class Fox: Predator {
+    override init(x: Int, y: Int) {
+        super.init(x: x, y: y)
+        self.weight = 8
+        self.maxEating = 2
+        self.maxSpeed = 2
+    }
+    
+    public override func eat(anim: Array<Object>) -> Object? {
+        for i in anim {
+            if ((i as? Horse?) != nil) {
+                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                return i
+            }
+        }
+        return nil
+    }
+    
+    public override func getChar() -> Character {return "🦊"}
 }
 
 
@@ -272,6 +321,33 @@ class Horse: Herbivore {
     public override func eat(anim: Array<Object>) -> Object? {
         for i in anim {
             if ((i as? Plant?) != nil) {
+                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                return i
+            }
+        }
+        return nil
+    }
+    
+    public override func getChar() -> Character {return ch}
+    
+    public override func die() {ch = "❌"}
+}
+
+class Rabbit: Herbivore {
+    
+    var ch: Character = "🐰"
+    
+    override init(x: Int, y: Int) {
+        super.init(x: x, y: y)
+        self.weight = 2
+        self.maxEating = 0.45
+        self.maxSpeed = 2
+    }
+    
+    public override func eat(anim: Array<Object>) -> Object? {
+        for i in anim {
+            if ((i as? Plant?) != nil) {
+                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
                 return i
             }
         }
