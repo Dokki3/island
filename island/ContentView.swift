@@ -63,6 +63,8 @@ struct IslandView: View {
     
     let island_new: Island
     
+    let colors_green: [Color] = [Color.gray, Color(red: 0, green: 255, blue: 0), Color(red: 0, green: 200, blue: 0), Color(red: 0, green: 155, blue: 0), Color(red: 0, green: 100, blue: 0)]
+    
     @State var refresh: Bool
     
     /*init(island_new: Island) {
@@ -76,7 +78,7 @@ struct IslandView: View {
                     ForEach(0..<15){j in
                         Rectangle()
                             .frame(width: 25, height: 25)
-                            .foregroundColor(island_new.plantInArray(w: i, h: j) ? Color.green : Color.gray)
+                            .foregroundColor(colors_green[island_new.plantInArray(w: i, h: j)])
                             .overlay(
                                 Text(island_new.getChars(w: i, h: j))
                                     .font(.system(size: 7))

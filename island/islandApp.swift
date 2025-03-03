@@ -25,7 +25,7 @@ class Island {
             islands.append([])
             for j in 0...h {
                 islands[i].append([])
-                if Int.random(in: 0...1) == 0 {
+                for _ in 0...Int.random(in: 0...4) {
                     islands[i][j].append(Plant(x: i, y: j))
                 }
                 if Int.random(in: 0...10) == 0 {
@@ -42,13 +42,14 @@ class Island {
         }
     }
     
-    public func plantInArray(w: Int, h:Int) -> Bool {
+    public func plantInArray(w: Int, h:Int) -> Int {
+        var c: Int = 0
         for objectLife in islands[w][h] {
-            if type(of: objectLife) == type(of: Plant(x: -1, y: -1)) {
-                return true
+            if ((objectLife as? Plant) != nil)  {
+                c += 1
             }
         }
-        return false
+        return c
     }
     
     public func getChars(w: Int, h: Int) -> String {
@@ -241,6 +242,8 @@ class Herbivore: Animal {
     
 }
 
+
+
 // Хищники:
 class Wolf: Predator {
     override init(x: Int, y: Int) {
@@ -251,11 +254,40 @@ class Wolf: Predator {
     }
     
     public override func eat(anim: Array<Object>) -> Object? {
+        var q: Int;
+        q = Int.random(in: 0...100)
+        var randHors: Bool = 0 < q && q < 91
+        q = Int.random(in: 0...100)
+        var randRabbit: Bool = 0 < q && q < 61
+        
         for i in anim {
-            if ((i as? Horse?) != nil) {
-                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                return i
+            if randHors && randRabbit {
+                if Int.random(in: 0...1) == 0 {
+                    if ((i as? Horse?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                } else {
+                    if ((i as? Rabbit?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                }
+            } else {
+                if randHors {
+                    if ((i as? Horse?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                }
+                if randRabbit {
+                    if ((i as? Rabbit?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                }
             }
+            
         }
         return nil
     }
@@ -272,11 +304,40 @@ class Bear: Predator {
     }
     
     public override func eat(anim: Array<Object>) -> Object? {
+        var q: Int;
+        q = Int.random(in: 0...100)
+        var randHors: Bool = 0 < q && q < 41
+        q = Int.random(in: 0...100)
+        var randRabbit: Bool = 0 < q && q < 81
+        
         for i in anim {
-            if ((i as? Horse?) != nil) {
-                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                return i
+            if randHors && randRabbit {
+                if Int.random(in: 0...1) == 0 {
+                    if ((i as? Horse?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                } else {
+                    if ((i as? Rabbit?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                }
+            } else {
+                if randHors {
+                    if ((i as? Horse?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                }
+                if randRabbit {
+                    if ((i as? Rabbit?) != nil) {
+                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                        return i
+                    }
+                }
             }
+            
         }
         return nil
     }
@@ -293,11 +354,18 @@ class Fox: Predator {
     }
     
     public override func eat(anim: Array<Object>) -> Object? {
+        var q: Int;
+        q = Int.random(in: 0...100)
+        var randRabbit: Bool = 0 < q && q < 71
+        
         for i in anim {
-            if ((i as? Horse?) != nil) {
-                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                return i
+            if randRabbit {
+                if ((i as? Rabbit?) != nil) {
+                    //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                    return i
+                }
             }
+            
         }
         return nil
     }
