@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Collections
 
 class Island {
     
@@ -25,7 +26,13 @@ class Island {
             islands.append([])
             for j in 0...h {
                 islands[i].append([])
-                for _ in 0...Int.random(in: 0...4) {
+                /*if Int.random(in: 0...100) < 80 {
+                    let r = Int.random(in: 1...3)
+                    for _ in 0...r {
+                        islands[i][j].append(Plant(x: i, y: j))
+                    }
+                }*/
+                for _ in 0...3 {
                     islands[i][j].append(Plant(x: i, y: j))
                 }
                 if Int.random(in: 0...10) == 0 {
@@ -81,12 +88,16 @@ class Island {
                             for (index, obj) in islands[i][j].enumerated() {
                                 if obj == eatingObject {
                                     ind = index
-                                    //print("\(k.getChar()) (\(String(describing: k.id))) съел \(islands[i][j][ind].getChar() != " " ? islands[i][j][ind].getChar() : "🟩") (\(String(describing: islands[i][j][ind].id))) а хотел съесть \(String(describing: eatingObject?.getChar() != " " ? eatingObject?.getChar() : "🟩")) (\(String(describing: eatingObject?.id)))")
                                     break
                                 }
                             }
                             if ind != -1 {
                                 islands[i][j].remove(at: ind)
+                                if ((eatingObject as? Animal) != nil)  {
+                                    if plantInArray(w: i, h: j) != 4 {
+                                        islands[i][j].append(Plant(x: i, y: j))
+                                    }
+                                }
                             }
                         }
                     }
@@ -147,6 +158,47 @@ class Island {
             }
         }
         return count
+    }
+    
+    public func count() -> OrderedDictionary<String, Int> {
+        var countDic: OrderedDictionary<String, Int> = [
+            "🐺": 0,
+            "🐻": 0,
+            "🦊": 0,
+            "🐴": 0,
+            "🐰": 0,
+        ]
+        
+        for i in 0...width {
+            for j in 0...height {
+                for l in islands[i][j] {
+                    if ((l as? Wolf) != nil) {
+                        countDic["🐺"]! += 1
+                    } else if ((l as? Bear) != nil) {
+                        countDic["🐻"]! += 1
+                    } else if ((l as? Fox) != nil) {
+                        countDic["🦊"]! += 1
+                    } else if ((l as? Horse) != nil) {
+                        countDic["🐴"]! += 1
+                    } else if ((l as? Rabbit) != nil) {
+                        countDic["🐰"]! += 1
+                    }
+                }
+            }
+        }
+        
+        /*var arr: [[String]] = [[], []]
+        
+        for (key, value) in countDic {
+            arr[0].append(key)
+            arr[1].append(String(value))
+        }
+        
+        print(arr[0])*/
+        
+        print(countDic.keys)
+        
+        return countDic
     }
 
 }
@@ -240,6 +292,16 @@ class Predator: Animal {
 
 class Herbivore: Animal {
     
+    public override func eat(anim: Array<Object>) -> Object? {
+        for i in anim {
+            if ((i as? Plant?) != nil) {
+                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
+                return i
+            }
+        }
+        return nil
+    }
+    
 }
 
 
@@ -256,9 +318,9 @@ class Wolf: Predator {
     public override func eat(anim: Array<Object>) -> Object? {
         var q: Int;
         q = Int.random(in: 0...100)
-        var randHors: Bool = 0 < q && q < 91
+        let randHors: Bool = 0 < q && q < 91
         q = Int.random(in: 0...100)
-        var randRabbit: Bool = 0 < q && q < 61
+        let randRabbit: Bool = 0 < q && q < 61
         
         for i in anim {
             if randHors && randRabbit {
@@ -306,9 +368,9 @@ class Bear: Predator {
     public override func eat(anim: Array<Object>) -> Object? {
         var q: Int;
         q = Int.random(in: 0...100)
-        var randHors: Bool = 0 < q && q < 41
+        let randHors: Bool = 0 < q && q < 41
         q = Int.random(in: 0...100)
-        var randRabbit: Bool = 0 < q && q < 81
+        let randRabbit: Bool = 0 < q && q < 81
         
         for i in anim {
             if randHors && randRabbit {
@@ -356,7 +418,7 @@ class Fox: Predator {
     public override func eat(anim: Array<Object>) -> Object? {
         var q: Int;
         q = Int.random(in: 0...100)
-        var randRabbit: Bool = 0 < q && q < 71
+        let randRabbit: Bool = 0 < q && q < 71
         
         for i in anim {
             if randRabbit {
@@ -386,16 +448,6 @@ class Horse: Herbivore {
         self.maxSpeed = 4
     }
     
-    public override func eat(anim: Array<Object>) -> Object? {
-        for i in anim {
-            if ((i as? Plant?) != nil) {
-                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                return i
-            }
-        }
-        return nil
-    }
-    
     public override func getChar() -> Character {return ch}
     
     public override func die() {ch = "❌"}
@@ -410,16 +462,6 @@ class Rabbit: Herbivore {
         self.weight = 2
         self.maxEating = 0.45
         self.maxSpeed = 2
-    }
-    
-    public override func eat(anim: Array<Object>) -> Object? {
-        for i in anim {
-            if ((i as? Plant?) != nil) {
-                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                return i
-            }
-        }
-        return nil
     }
     
     public override func getChar() -> Character {return ch}

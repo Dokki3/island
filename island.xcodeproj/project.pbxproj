@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9325BE552D823EA2008AD0D7 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 9325BE542D823EA2008AD0D7 /* Collections */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		93AD63E12D5F5A9F00BAC28A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9325BE552D823EA2008AD0D7 /* Collections in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = island;
 			packageProductDependencies = (
+				9325BE542D823EA2008AD0D7 /* Collections */,
 			);
 			productName = island;
 			productReference = 93AD63D02D5F5A9C00BAC28A /* island.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 93AD63C72D5F5A9C00BAC28A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9325BE532D823C63008AD0D7 /* XCRemoteSwiftPackageReference "swift-collections" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 93AD63D12D5F5A9C00BAC28A /* Products */;
 			projectDirPath = "";
@@ -399,6 +408,7 @@
 				DEVELOPMENT_TEAM = CCSU3C33X4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -428,6 +438,7 @@
 				DEVELOPMENT_TEAM = CCSU3C33X4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -558,6 +569,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9325BE532D823C63008AD0D7 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9325BE542D823EA2008AD0D7 /* Collections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9325BE532D823C63008AD0D7 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = Collections;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 93AD63C82D5F5A9C00BAC28A /* Project object */;
 }

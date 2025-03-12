@@ -30,11 +30,7 @@ struct ContentView: View {
                     refresh.toggle()
                 }
             HStack {
-                Text(String(island.countWolf()))
-                    .padding()
-                    .font(.system(size: 15))
-                
-                Button("playpause", systemImage: "playpause.fill") {
+                Button("", systemImage: "playpause.fill") {
                     if !timerPause {
                         timer = Timer.publish(every: 999999, on: .current, in: .common).autoconnect()
                         timerPause.toggle()
@@ -43,27 +39,33 @@ struct ContentView: View {
                         timerPause.toggle()
                     }
                 }
-                .buttonStyle(.bordered)
                 .padding()
-                .font(.system(size: 15))
+                .font(.system(size: 30))
                 
-                Text(String(island.countHorse()))
-                    .padding()
-                    .font(.system(size: 15))
+                @State var countAnimal = island.count()
+                
+                Spacer()
+                
+                Menu("", systemImage: "exclamationmark.circle.fill") {
+                    ForEach(countAnimal.keys, id: \.self) { emoji in
+                        Button("\(emoji): \(countAnimal[emoji]!)") {}
+                    }
+                }
+                .font(.system(size: 30))
+                
             }
+            .padding()
         }
-        .background(Color.green)
+        .background(Color(red: 0, green: 255, blue: 0))
         .padding()
     }
 }
-
-
 
 struct IslandView: View {
     
     let island_new: Island
     
-    let colors_green: [Color] = [Color.gray, Color(red: 0, green: 255, blue: 0), Color(red: 0, green: 200, blue: 0), Color(red: 0, green: 155, blue: 0), Color(red: 0, green: 100, blue: 0)]
+    let colors_green: [Color] = [Color.gray, Color(red: 0, green: 0.8, blue: 0), Color(red: 0, green: 0.6, blue: 0), Color(red: 0, green: 0.4, blue: 0), Color(red: 0, green: 0.2, blue: 0)]
     
     @State var refresh: Bool
     
