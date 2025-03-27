@@ -1,102 +1,168 @@
-//
-//  test1App.swift
-//  island
-//
-//  Created by Дмитрий Хомяков on 13.02.2025.
-//
-
 import SwiftUI
-import Collections
+import Combine
 
-class Island {
+final class Island: ObservableObject {
+    static var shared: Island?
     
-    public let width: Int;
-    public let height: Int;
+    let width: Int
+    let height: Int
     
-    public var islands: Array<Array<Array<Object>>> = []
+    @Published private(set) var plantCount: [[Int]]
+    @Published private(set) var animals: [[Animal?]]
+    @Published private(set) var animalCounts: [String: Int] = [:]
     
-    public var x_q: Int = 0
-    public var y_q: Int = 0
+    private var simulationQueue = DispatchQueue(label: "island.simulation",
+                                              qos: .userInitiated,
+                                              attributes: .concurrent)
+    private var timer: AnyCancellable?
+    
+    
+    let maxAnimalsPerType = 15
+    let maxAnimalsPerCell = 4
     
     init(w: Int, h: Int) {
-        width = w
-        height = h
-        
-        for i in 0...w {
-            islands.append([])
-            for j in 0...h {
-                islands[i].append([])
-                /*if Int.random(in: 0...100) < 80 {
-                    let r = Int.random(in: 1...3)
-                    for _ in 0...r {
-                        islands[i][j].append(Plant(x: i, y: j))
-                    }
-                }*/
-                for _ in 0...3 {
-                    islands[i][j].append(Plant(x: i, y: j))
-                }
-                if Int.random(in: 0...10) == 0 {
-                    switch Int.random(in: 0...4) {
-                    case 0: islands[i][j].append(Wolf(x: i, y: j))
-                    case 1: islands[i][j].append(Horse(x: i, y: j))
-                    case 2: islands[i][j].append(Bear(x: i, y: j))
-                    case 3: islands[i][j].append(Fox(x: i, y: j))
-                    case 4: islands[i][j].append(Rabbit(x: i, y: j))
-                    default: continue
-                    }
+        self.width = w
+        self.height = h
+        self.plantCount = Array(repeating: Array(repeating: 0, count: h), count: w)
+        self.animals = Array(repeating: Array(repeating: nil, count: h), count: w)
+        Island.shared = self
+        initializeIsland()
+    }
+    
+    private func initializeIsland() {
+        for x in 0..<width {
+            for y in 0..<height {
+                plantCount[x][y] = Int.random(in: 1...3)
+                
+                if Int.random(in: 0..<10) == 0 {
+                    animals[x][y] = AnimalFactory.createRandomAnimal(x: x, y: y)
                 }
             }
         }
+        updateCounts()
     }
     
-    public func plantInArray(w: Int, h:Int) -> Int {
-        var c: Int = 0
-        for objectLife in islands[w][h] {
-            if ((objectLife as? Plant) != nil)  {
-                c += 1
+    func startSimulation(interval: TimeInterval = 1.0) {
+        timer = Timer.publish(every: interval, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.updateIsland()
             }
-        }
-        return c
     }
     
-    public func getChars(w: Int, h: Int) -> String {
-        var result = ""
-        for k in 0..<(self.islands[w][h].count) {
-            result += islands[w][h][k].getChar() != " " ? String(islands[w][h][k].getChar()) : ""
-        }
-        return result
-    }
-    
-    public func allAnimalGo() {
-        for i in 0...self.width {
-            for j in 0...self.height {
-                for k in 0..<(self.islands[i][j].count) {
-                    islands[i][j][k].go(w: width, h: height)
-                }
-            }
-        }
-    }
-    
-    public func allAnimalEat() {
-        for i in 0...self.width {
-            for j in 0...self.height {
-                for k in islands[i][j] {
-                    if Int.random(in: 0...1) == 0 {
-                        let eatingObject: Object? = k.eat(anim: islands[i][j])
-                        if eatingObject != nil {
-                            var ind: Int = -1
-                            for (index, obj) in islands[i][j].enumerated() {
-                                if obj == eatingObject {
-                                    ind = index
-                                    break
-                                }
+    private func updateIsland() {
+        simulationQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            var newAnimals = self.animals
+            var newPlants = self.plantCount
+            var needsUpdate = false
+            
+            // 1. Обновление состояния животных
+            for x in 0..<self.width {
+                for y in 0..<self.height {
+                    if var animal = newAnimals[x][y] {
+                        animal.update()
+                        
+                        if !animal.isAlive {
+                            newAnimals[x][y] = nil
+                            needsUpdate = true
+                            continue
+                        }
+                        
+                        let oldX = animal.x
+                        let oldY = animal.y
+                        animal.move(w: self.width, h: self.height)
+                        
+                        if oldX != animal.x || oldY != animal.y {
+                            newAnimals[oldX][oldY] = nil
+                            
+                            if newAnimals[animal.x][animal.y] == nil {
+                                newAnimals[animal.x][animal.y] = animal
+                                needsUpdate = true
+                            } else {
+                                animal.x = oldX
+                                animal.y = oldY
+                                newAnimals[oldX][oldY] = animal
                             }
-                            if ind != -1 {
-                                islands[i][j].remove(at: ind)
-                                if ((eatingObject as? Animal) != nil)  {
-                                    if plantInArray(w: i, h: j) != 4 {
-                                        islands[i][j].append(Plant(x: i, y: j))
-                                    }
+                        }
+                        
+                        if animal.tryToEat(plants: &newPlants[animal.x][animal.y],
+                                          animals: &newAnimals) {
+                            needsUpdate = true
+                        }
+                    }
+                    
+                    if newPlants[x][y] < 3 && Int.random(in: 0..<5) == 0 {
+                        newPlants[x][y] += 1
+                        needsUpdate = true
+                    }
+                }
+            }
+            
+            // 2. Размножение
+            if self.processReproduction(animals: &newAnimals) {
+                needsUpdate = true
+            }
+            
+            // 3. Обновление UI
+            if needsUpdate {
+                DispatchQueue.main.async {
+                    self.animals = newAnimals
+                    self.plantCount = newPlants
+                    self.updateCounts()
+                }
+            }
+        }
+    }
+
+    private func processReproduction(animals: inout [[Animal?]]) -> Bool {
+        var reproduced = false
+        
+        for x in 0..<width {
+            for y in 0..<height {
+                guard let animal = animals[x][y],
+                      animal.energy > animal.maxEnergy * 0.6,
+                      animalCounts[String(animal.emoji)] ?? 0 < maxAnimalsPerType,
+                      Int.random(in: 0..<100) < 8 else { continue }
+                
+                // Проверяем количество животных в текущей клетке
+                var animalsInCell = 0
+                for dx in -1...1 {
+                    for dy in -1...1 {
+                        let nx = max(0, min(x + dx, width - 1))
+                        let ny = max(0, min(y + dy, height - 1))
+                        if animals[nx][ny] != nil {
+                            animalsInCell += 1
+                        }
+                    }
+                }
+                
+                guard animalsInCell < maxAnimalsPerCell else { continue }
+                
+                // Поиск партнера для размножения
+                for dx in -1...1 {
+                    for dy in -1...1 {
+                        let nx = max(0, min(x + dx, width - 1))
+                        let ny = max(0, min(y + dy, height - 1))
+                        
+                        if let partner = animals[nx][ny],
+                           type(of: animal) == type(of: partner),
+                           partner.energy > partner.maxEnergy * 0.6 {
+                            
+                            // Ищем свободное место для потомка
+                            for _ in 0..<3 {
+                                let babyX = max(0, min(x + Int.random(in: -1...1), width - 1))
+                                let babyY = max(0, min(y + Int.random(in: -1...1), height - 1))
+                                
+                                if animals[babyX][babyY] == nil {
+                                    let baby = animal.reproduce()
+                                    baby.energy = baby.maxEnergy * 0.5
+                                    animals[babyX][babyY] = baby
+                                    animal.energy *= 0.7
+                                    partner.energy *= 0.7
+                                    reproduced = true
+                                    break
                                 }
                             }
                         }
@@ -104,374 +170,429 @@ class Island {
                 }
             }
         }
-    }
-    
-    public func updateIsland() {
-        var islandsNew: Array<Array<Array<Object>>> = []
-        
-        var allLife: Array<Object> = []
-        
-        for i in 0...width {
-            for j in 0...height {
-                allLife += islands[i][j]
-            }
-        }
-        
-        for i in 0...width {
-            islandsNew.append([])
-            for j in 0...height {
-                islandsNew[i].append([])
-                for l in allLife {
-                    if l.x == i && l.y == j {
-                        islandsNew[i][j].append(l)
-                    }
-                }
-            }
-        }
-        
-        islands = islandsNew
-    }
-    
-    public func countWolf() -> Int {
-        var count: Int = 0
-        for i in 0...width {
-            for j in 0...height {
-                for l in islands[i][j] {
-                    if ((l as? Wolf) != nil) {
-                        count += 1
-                    }
-                }
-            }
-        }
-        return count
+        return reproduced
     }
 
-    public func countHorse() -> Int {
-        var count: Int = 0
-        for i in 0...width {
-            for j in 0...height {
-                for l in islands[i][j] {
-                    if ((l as? Horse) != nil) {
-                        count += 1
-                    }
+    
+    private func updateCounts() {
+        var counts = [String: Int]()
+        for x in 0..<width {
+            for y in 0..<height {
+                if let animal = animals[x][y] {
+                    counts[String(animal.emoji), default: 0] += 1
                 }
             }
         }
-        return count
+        animalCounts = counts
     }
     
-    public func count() -> OrderedDictionary<String, Int> {
-        var countDic: OrderedDictionary<String, Int> = [
-            "🐺": 0,
-            "🐻": 0,
-            "🦊": 0,
-            "🐴": 0,
-            "🐰": 0,
-        ]
-        
-        for i in 0...width {
-            for j in 0...height {
-                for l in islands[i][j] {
-                    if ((l as? Wolf) != nil) {
-                        countDic["🐺"]! += 1
-                    } else if ((l as? Bear) != nil) {
-                        countDic["🐻"]! += 1
-                    } else if ((l as? Fox) != nil) {
-                        countDic["🦊"]! += 1
-                    } else if ((l as? Horse) != nil) {
-                        countDic["🐴"]! += 1
-                    } else if ((l as? Rabbit) != nil) {
-                        countDic["🐰"]! += 1
-                    }
-                }
-            }
-        }
-        
-        /*var arr: [[String]] = [[], []]
-        
-        for (key, value) in countDic {
-            arr[0].append(key)
-            arr[1].append(String(value))
-        }
-        
-        print(arr[0])*/
-        
-        print(countDic.keys)
-        
-        return countDic
+    func getCharsAt(x: Int, y: Int) -> String {
+        guard x >= 0, x < width, y >= 0, y < height,
+              let animal = animals[x][y] else { return "" }
+        return String(animal.emoji)
     }
-
 }
 
-// общий класс
-class Object {
-    public var x: Int;
-    public var y: Int;
-    public var id: UnsafeMutableRawPointer? = nil;
+// MARK: - Фабрика животных
+struct AnimalFactory {
+    private static let animalTypes: [(Int, Int) -> Animal] = [
+        Wolf.init, Boa.init, Fox.init, Bear.init, Eagle.init,
+        Horse.init, Deer.init, Rabbit.init, Mouse.init,
+        Goat.init, Sheep.init, Boar.init, Buffalo.init,
+        Duck.init, Caterpillar.init
+    ]
     
-    init(x: Int, y: Int) {
+    static func createRandomAnimal(x: Int, y: Int) -> Animal {
+        return animalTypes.randomElement()!(x, y)
+    }
+    
+    static func createAnimal(type: Animal.Type, x: Int, y: Int) -> Animal {
+        switch type {
+        case is Wolf.Type: return Wolf(x: x, y: y)
+        case is Boa.Type: return Boa(x: x, y: y)
+        case is Fox.Type: return Fox(x: x, y: y)
+        case is Bear.Type: return Bear(x: x, y: y)
+        case is Eagle.Type: return Eagle(x: x, y: y)
+        case is Horse.Type: return Horse(x: x, y: y)
+        case is Deer.Type: return Deer(x: x, y: y)
+        case is Rabbit.Type: return Rabbit(x: x, y: y)
+        case is Mouse.Type: return Mouse(x: x, y: y)
+        case is Goat.Type: return Goat(x: x, y: y)
+        case is Sheep.Type: return Sheep(x: x, y: y)
+        case is Boar.Type: return Boar(x: x, y: y)
+        case is Buffalo.Type: return Buffalo(x: x, y: y)
+        case is Duck.Type: return Duck(x: x, y: y)
+        case is Caterpillar.Type: return Caterpillar(x: x, y: y)
+        default: return Wolf(x: x, y: y)
+        }
+    }
+}
+
+// MARK: - Базовый класс животного
+class Animal: Identifiable, Equatable {
+    var id = UUID()
+    var x: Int
+    var y: Int
+    var kills = 0
+    let emoji: Character
+    let moveSpeed: Int
+    
+    var energy: Double
+    let maxEnergy: Double
+    var age = 0
+    var isAlive = true
+    
+    init(x: Int, y: Int, emoji: Character, moveSpeed: Int, maxEnergy: Double) {
         self.x = x
         self.y = y
-        self.id = Unmanaged.passUnretained(self).toOpaque()
+        self.emoji = emoji
+        self.moveSpeed = moveSpeed
+        self.maxEnergy = maxEnergy
+        self.energy = maxEnergy * Double.random(in: 0.5...1.0)
     }
     
-    public func go(w: Int, h: Int) {}
-    public func eat(anim: Array<Object>) -> Object? {return nil}
-    public func die() {}
-    public func reproduction(partner: Animal) -> Bool {return false}
-    public func getChar() -> Character {return " "}
-    public func getColor() -> Color {return Color.white}
-}
-
-// Расширение пользовательского типа
-extension Object: Equatable {
-    static func == (left: Object, right: Object) -> Bool {
-        if left.x == right.x && left.y == right.y && left.id == right.id {
+    func move(w: Int, h: Int) {
+        guard isAlive else { return }
+        
+        energy -= 0.2
+        guard Int.random(in: 0...100) < Int(energy/maxEnergy * 100) else { return }
+        
+        let directions = [(0, -1), (1, 0), (0, 1), (-1, 0)].shuffled()
+        
+        for _ in 0..<moveSpeed {
+            if let (dx, dy) = directions.first {
+                let newX = max(0, min(x + dx, w - 1))
+                let newY = max(0, min(y + dy, h - 1))
+                
+                if newX != x || newY != y {
+                    x = newX
+                    y = newY
+                    break
+                }
+            }
+        }
+    }
+    
+    func update() {
+        guard isAlive else { return }
+        
+        age += 1
+        energy -= 0.1
+        
+        if age > 100 || energy <= 0 {
+            isAlive = false
+        }
+    }
+    
+    func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        return false
+    }
+    
+    func canEat(_ other: Animal) -> Bool {
+        return false
+    }
+    
+    func reproduce() -> Animal {
+        return AnimalFactory.createAnimal(type: type(of: self), x: x, y: y)
+    }
+    
+    static func == (lhs: Animal, rhs: Animal) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    func checkCellCapacity(animals: [[Animal?]]) -> Bool {
+            guard let island = Island.shared else { return false }
+            
+            var count = 0
+            for dx in -1...1 {
+                for dy in -1...1 {
+                    let nx = max(0, min(x + dx, animals.count - 1))
+                    let ny = max(0, min(y + dy, animals[0].count - 1))
+                    if animals[nx][ny] != nil {
+                        count += 1
+                    }
+                }
+            }
+            return count < island.maxAnimalsPerCell
+        }
+        
+        func performEating(prey: Animal, energyGain: Double, plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+            energy = min(maxEnergy, energy + energyGain)
+            prey.isAlive = false
+            animals[x][y] = self
+            kills += 1
+            
+            // 30% chance to spawn plant when prey is killed
+            if plants < 4 && Int.random(in: 0..<3) == 0 {
+                plants += 1
+            }
+            
             return true
-        } else {
-            return false
         }
-    }
 }
 
-// Основные виды живых существ
-class Plant: Object {
-    
-    var c: Color = Color.green
-    
-    override init(x: Int, y:Int) {
-        super.init(x: x, y: y)
+// MARK: - Базовые типы
+protocol Predator {}
+protocol Herbivore {}
+protocol Omnivore {}
+
+// MARK: - Хищники
+final class Wolf: Animal, Predator {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐺", moveSpeed: 2, maxEnergy: 100)
     }
-    
-    public override func die() {c = Color.red}
-    public override func getColor() -> Color {return c}
-}
 
-class Animal: Object {
-    public var weight: Double = 0;
-    public var maxEating: Double = 0;
-    public var maxSpeed: Int = 0;
-    
-    override init(x: Int, y:Int) {
-        super.init(x: x, y: y)
-    }
-    
-    public override func go(w: Int, h: Int) {
-        let speedAnimal: Int = Int.random(in: 0...maxSpeed)
-        for _ in 0...speedAnimal {
-            let rotateWalk: Int = Int.random(in: 0...3)
-            switch rotateWalk {
-            case 0:
-                if self.y - 1 >= 0 {
-                    self.y -= 1
-                }
-            case 1:
-                if self.x + 1 < w {
-                    self.x += 1
-                }
-            case 2:
-                if self.y + 1 < h {
-                    self.y += 1
-                }
-            case 3:
-                if self.x - 1 >= 0 {
-                    self.x -= 1
-                }
-            default:
-                break
-            }
-        }
-    }
-    
-}
-
-// разделение животных на хищников и травоядных
-class Predator: Animal {
-    
-}
-
-class Herbivore: Animal {
-    
-    public override func eat(anim: Array<Object>) -> Object? {
-        for i in anim {
-            if ((i as? Plant?) != nil) {
-                //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                return i
-            }
-        }
-        return nil
-    }
-    
-}
-
-
-
-// Хищники:
-class Wolf: Predator {
-    override init(x: Int, y: Int) {
-        super.init(x: x, y: y)
-        self.weight = 50
-        self.maxEating = 8
-        self.maxSpeed = 3
-    }
-    
-    public override func eat(anim: Array<Object>) -> Object? {
-        var q: Int;
-        q = Int.random(in: 0...100)
-        let randHors: Bool = 0 < q && q < 91
-        q = Int.random(in: 0...100)
-        let randRabbit: Bool = 0 < q && q < 61
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard checkCellCapacity(animals: animals) else { return false }
         
-        for i in anim {
-            if randHors && randRabbit {
-                if Int.random(in: 0...1) == 0 {
-                    if ((i as? Horse?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                } else {
-                    if ((i as? Rabbit?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                }
-            } else {
-                if randHors {
-                    if ((i as? Horse?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                }
-                if randRabbit {
-                    if ((i as? Rabbit?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                }
-            }
-            
+        if let prey = animals[x][y], canEat(prey) {
+            return performEating(prey: prey, energyGain: 25, plants: &plants, animals: &animals)
         }
-        return nil
+        return false
     }
-    
-    public override func getChar() -> Character {return "🐺"}
+
+    override func canEat(_ other: Animal) -> Bool {
+        other is Rabbit || other is Deer || other is Mouse || other is Sheep || other is Goat
+    }
 }
 
-class Bear: Predator {
-    override init(x: Int, y: Int) {
-        super.init(x: x, y: y)
-        self.weight = 500
-        self.maxEating = 80
-        self.maxSpeed = 2
+final class Boa: Animal, Predator {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐍", moveSpeed: 1, maxEnergy: 70)
     }
-    
-    public override func eat(anim: Array<Object>) -> Object? {
-        var q: Int;
-        q = Int.random(in: 0...100)
-        let randHors: Bool = 0 < q && q < 41
-        q = Int.random(in: 0...100)
-        let randRabbit: Bool = 0 < q && q < 81
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard checkCellCapacity(animals: animals) else { return false }
         
-        for i in anim {
-            if randHors && randRabbit {
-                if Int.random(in: 0...1) == 0 {
-                    if ((i as? Horse?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                } else {
-                    if ((i as? Rabbit?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                }
-            } else {
-                if randHors {
-                    if ((i as? Horse?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                }
-                if randRabbit {
-                    if ((i as? Rabbit?) != nil) {
-                        //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                        return i
-                    }
-                }
-            }
-            
+        if let prey = animals[x][y], canEat(prey) {
+            return performEating(prey: prey, energyGain: 20, plants: &plants, animals: &animals)
         }
-        return nil
+        return false
     }
-    
-    public override func getChar() -> Character {return "🐻"}
+
+    override func canEat(_ other: Animal) -> Bool {
+        other is Rabbit || other is Mouse || other is Duck
+    }
 }
 
-class Fox: Predator {
-    override init(x: Int, y: Int) {
-        super.init(x: x, y: y)
-        self.weight = 8
-        self.maxEating = 2
-        self.maxSpeed = 2
+final class Fox: Animal, Predator {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🦊", moveSpeed: 3, maxEnergy: 60)
     }
-    
-    public override func eat(anim: Array<Object>) -> Object? {
-        var q: Int;
-        q = Int.random(in: 0...100)
-        let randRabbit: Bool = 0 < q && q < 71
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        if let prey = animals[x][y], canEat(prey), checkCellCapacity(animals: animals) {
+            return performEating(prey: prey, energyGain: 15, plants: &plants, animals: &animals)
+        }
         
-        for i in anim {
-            if randRabbit {
-                if ((i as? Rabbit?) != nil) {
-                    //print("\(self.getChar()) съел \(i.getChar() != " " ? i.getChar() : "🟩")")
-                    return i
-                }
-            }
-            
+        // Лисы могут есть растения при недостатке пищи
+        if plants > 0 && energy < maxEnergy * 0.3 {
+            plants -= 1
+            energy = min(maxEnergy, energy + 5)
+            return true
         }
-        return nil
+        return false
     }
-    
-    public override func getChar() -> Character {return "🦊"}
+
+    override func canEat(_ other: Animal) -> Bool {
+        other is Rabbit || other is Mouse || other is Duck || other is Caterpillar
+    }
 }
 
-
-// Травоядные:
-class Horse: Herbivore {
-    
-    var ch: Character = "🐴"
-    
-    override init(x: Int, y: Int) {
-        super.init(x: x, y: y)
-        self.weight = 400
-        self.maxEating = 60
-        self.maxSpeed = 4
+final class Bear: Animal, Omnivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐻", moveSpeed: 2, maxEnergy: 150)
     }
-    
-    public override func getChar() -> Character {return ch}
-    
-    public override func die() {ch = "❌"}
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        if let prey = animals[x][y], canEat(prey), checkCellCapacity(animals: animals) {
+            return performEating(prey: prey, energyGain: 40, plants: &plants, animals: &animals)
+        }
+        
+        // Медведи всеядны - едят растения
+        if plants > 0 && energy < maxEnergy * 0.7 {
+            plants -= 1
+            energy = min(maxEnergy, energy + 10)
+            return true
+        }
+        return false
+    }
+
+    override func canEat(_ other: Animal) -> Bool {
+        other is Boa || other is Deer || other is Rabbit || other is Boar
+    }
 }
 
-class Rabbit: Herbivore {
-    
-    var ch: Character = "🐰"
-    
-    override init(x: Int, y: Int) {
-        super.init(x: x, y: y)
-        self.weight = 2
-        self.maxEating = 0.45
-        self.maxSpeed = 2
+final class Eagle: Animal, Predator {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🦅", moveSpeed: 4, maxEnergy: 50)
     }
-    
-    public override func getChar() -> Character {return ch}
-    
-    public override func die() {ch = "❌"}
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard checkCellCapacity(animals: animals) else { return false }
+        
+        if let prey = animals[x][y], canEat(prey) {
+            return performEating(prey: prey, energyGain: 20, plants: &plants, animals: &animals)
+        }
+        return false
+    }
+
+    override func canEat(_ other: Animal) -> Bool {
+        other is Rabbit || other is Mouse || other is Fox || other is Duck
+    }
 }
 
+// MARK: - Травоядные
+final class Horse: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐴", moveSpeed: 4, maxEnergy: 120)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 15)
+        return true
+    }
+}
+
+final class Deer: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🦌", moveSpeed: 4, maxEnergy: 90)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 12)
+        return true
+    }
+}
+
+final class Rabbit: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐰", moveSpeed: 3, maxEnergy: 50)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 8)
+        return true
+    }
+}
+
+final class Mouse: Animal, Omnivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐭", moveSpeed: 2, maxEnergy: 30)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        if let prey = animals[x][y], prey is Caterpillar, checkCellCapacity(animals: animals) {
+            return performEating(prey: prey, energyGain: 5, plants: &plants, animals: &animals)
+        }
+        
+        if plants > 0 {
+            plants -= 1
+            energy = min(maxEnergy, energy + 5)
+            return true
+        }
+        return false
+    }
+}
+
+final class Goat: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐐", moveSpeed: 3, maxEnergy: 80)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 10)
+        return true
+    }
+}
+
+final class Sheep: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐑", moveSpeed: 3, maxEnergy: 85)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 10)
+        return true
+    }
+}
+
+final class Boar: Animal, Omnivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐗", moveSpeed: 2, maxEnergy: 110)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        if let prey = animals[x][y], (prey is Caterpillar || prey is Mouse), checkCellCapacity(animals: animals) {
+            return performEating(prey: prey, energyGain: 10, plants: &plants, animals: &animals)
+        }
+        
+        if plants > 0 {
+            plants -= 1
+            energy = min(maxEnergy, energy + 12)
+            return true
+        }
+        return false
+    }
+}
+
+final class Buffalo: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐃", moveSpeed: 3, maxEnergy: 150)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 20)
+        return true
+    }
+}
+
+final class Duck: Animal, Omnivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🦆", moveSpeed: 4, maxEnergy: 40)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        if let prey = animals[x][y], prey is Caterpillar, checkCellCapacity(animals: animals) {
+            return performEating(prey: prey, energyGain: 5, plants: &plants, animals: &animals)
+        }
+        
+        if plants > 0 {
+            plants -= 1
+            energy = min(maxEnergy, energy + 5)
+            return true
+        }
+        return false
+    }
+}
+
+final class Caterpillar: Animal, Herbivore {
+    init(x: Int, y: Int) {
+        super.init(x: x, y: y, emoji: "🐛", moveSpeed: 0, maxEnergy: 10)
+    }
+
+    override func tryToEat(plants: inout Int, animals: inout [[Animal?]]) -> Bool {
+        guard plants > 0 else { return false }
+        plants -= 1
+        energy = min(maxEnergy, energy + 2)
+        return true
+    }
+}
 
 @main
-struct islandApp: App {
+struct IslandApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
