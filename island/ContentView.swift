@@ -1,98 +1,87 @@
-//
-//  ContentView.swift
-//  test1
-//
-//  Created by Дмитрий Хомяков on 13.02.2025.
-//
-
 import SwiftUI
 
-
 struct ContentView: View {
+    @StateObject private var island = Island(w: 20, h: 15)
+    @State private var timerPause = true
     
-    @State var refresh = false
-    @State var island = Island(w: 30, h: 15)
-    
-    @State var timer = Timer.publish(every: 0.5, on: .current, in: .common).autoconnect()
-    @State var timerPause = false
+    var speedSimulation = 1
     
     var body: some View {
-        
         VStack {
-            IslandView(island_new: island, refresh: refresh)
-                .onReceive(timer) {_ in
-                    if Int.random(in: 0...1) == 0 {
-                        island.allAnimalGo()
-                    } else {
-                        island.allAnimalEat()
-                    }
-                    island.updateIsland()
-                    refresh.toggle()
-                }
-            HStack {
-                Button("", systemImage: "playpause.fill") {
-                    if !timerPause {
-                        timer = Timer.publish(every: 999999, on: .current, in: .common).autoconnect()
-                        timerPause.toggle()
-                    } else {
-                        timer = Timer.publish(every: 0.5, on: .current, in: .common).autoconnect()
-                        timerPause.toggle()
-                    }
-                }
-                .padding()
-                .font(.system(size: 30))
+            IslandView(island: island)
+                    
+            Spacer()
+            
+            VStack {
                 
-                @State var countAnimal = island.count()
+                Text("Population: \(island.animalCounts.values.reduce(0, +))")
                 
                 Spacer()
                 
-                Menu("", systemImage: "exclamationmark.circle.fill") {
-                    ForEach(countAnimal.keys, id: \.self) { emoji in
-                        Button("\(emoji): \(countAnimal[emoji]!)") {}
+                HStack {
+                    
+                    Button("", systemImage: "playpause.fill") {
+                        timerPause.toggle()
+                        island.startSimulation(interval: timerPause ? 0.5 : 99999999999)
+                    }
+                    .font(.system(size: 30))
+                    
+                    Spacer()
+                    
+                    Menu {
+                        ForEach(island.animalCounts.sorted(by: { $0.key < $1.key }), id: \.key) { emoji, count in
+                            Text("\(emoji): \(count)")
+                        }
+                    } label: {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 30))
                     }
                 }
-                .font(.system(size: 30))
-                
             }
             .padding()
         }
-        .background(Color(red: 0, green: 255, blue: 0))
-        .padding()
+        .background(Color.cyan)
+        .onAppear {
+            island.startSimulation(interval: timerPause ? 0.5 : 99999999999) // Установка скорости 1 секунда
+        }
     }
 }
 
 struct IslandView: View {
-    
-    let island_new: Island
-    
-    let colors_green: [Color] = [Color.gray, Color(red: 0, green: 0.8, blue: 0), Color(red: 0, green: 0.6, blue: 0), Color(red: 0, green: 0.4, blue: 0), Color(red: 0, green: 0.2, blue: 0)]
-    
-    @State var refresh: Bool
-    
-    /*init(island_new: Island) {
-        self.island_new = island_new
-    }*/
+    @ObservedObject var island: Island
+    let colors = [Color(red: 1, green: 1, blue: 0), Color(red: 0, green: 0.8, blue: 0), Color(red: 0, green: 0.6, blue: 0), Color(red: 0, green: 0.4, blue: 0), Color(red: 0, green: 0.2, blue: 0)]
     
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(0..<30) {i in
+            ForEach(0..<island.width, id: \.self) { x in
                 HStack(spacing: 0) {
-                    ForEach(0..<15){j in
-                        Rectangle()
-                            .frame(width: 25, height: 25)
-                            .foregroundColor(colors_green[island_new.plantInArray(w: i, h: j)])
-                            .overlay(
-                                Text(island_new.getChars(w: i, h: j))
-                                    .font(.system(size: 7))
-                            )
+                    ForEach(0..<island.height, id: \.self) { y in
+                        CellView(island: island, x: x, y: y, colors: colors)
                     }
                 }
             }
         }
-        .padding()
+        .padding(2)
     }
 }
 
-#Preview {
+struct CellView: View {
+    @ObservedObject var island: Island
+    let x: Int
+    let y: Int
+    let colors: [Color]
+    
+    var body: some View {
+        Rectangle()
+            .frame(width: 25, height: 25)
+            .foregroundColor(colors[min(island.plantCount[x][y], colors.count - 1)])
+            .overlay(
+                Text(island.getCharsAt(x: x, y: y))
+                    .font(.system(size: 7))
+            )
+    }
+}
+
+#Preview{
     ContentView()
 }
